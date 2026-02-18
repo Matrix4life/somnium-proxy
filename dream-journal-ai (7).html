@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#07081a">
+  <meta name="description" content="Somnium — AI-powered dream journal with psychic readings">
+  <title>Somnium — Dream Journal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Somnium%22,%22short_name%22:%22Somnium%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%2307081a%22,%22theme_color%22:%22%2307081a%22}">
+
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    :root{
+      --void:#07081a;--deep:#0d0f26;--surface:rgba(255,255,255,0.04);--glass:rgba(255,255,255,0.07);
+      --border:rgba(255,255,255,0.08);--border-hi:rgba(180,160,255,0.28);
+      --text:#e8e4f8;--text-sub:#a39cc0;--text-muted:#6b6286;
+      --luna:#c8b8ff;--aurora:#7fd8c8;
+      --font-d:'Cormorant Garamond',Georgia,serif;--font-b:'DM Sans',system-ui,sans-serif;
+      --r:1rem;--rl:1.5rem;--rx:2rem;
+      --shadow:0 4px 24px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3);
+      --sglow:0 0 40px rgba(180,140,255,0.08);
+    }
+    html{height:100%}
+    body{font-family:var(--font-b);background:var(--void);color:var(--text);min-height:100vh;line-height:1.65;overflow-x:hidden;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
+    #starCanvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+    .nebula{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.18;pointer-events:none;z-index:0}
+    .nb1{width:500px;height:500px;background:#5b3fa0;top:-180px;right:-160px;animation:drift 18s ease-in-out infinite alternate}
+    .nb2{width:400px;height:400px;background:#2a6b7c;bottom:100px;left:-140px;animation:drift 22s ease-in-out infinite alternate-reverse}
+    .nb3{width:300px;height:300px;background:#7c2e6e;top:40%;left:50%;animation:drift 26s ease-in-out infinite alternate}
+    @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(30px,20px) scale(1.08)}}
+    .app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+
+    /* Header */
+    .app-header{position:sticky;top:0;z-index:100;padding:1rem 1.25rem;background:linear-gradient(180deg,rgba(7,8,26,.95) 60%,rgba(7,8,26,0) 100%);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:.625rem}
+    .logo-moon{width:28px;height:28px;background:conic-gradient(from 160deg,#c8b8ff 0%,#7fd8c8 40%,#c8b8ff 70%);border-radius:50%;box-shadow:0 0 16px rgba(200,184,255,.45),inset -6px -4px 0 rgba(7,8,26,.7)}
+    .logo-text{font-family:var(--font-d);font-size:1.55rem;font-weight:300;letter-spacing:.06em;color:var(--luna)}
+    .header-actions{display:flex;gap:.5rem;align-items:center}
+    .header-btn{width:36px;height:36px;border:1px solid var(--border);border-radius:50%;background:var(--surface);color:var(--text-sub);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:.9rem}
+    .header-btn:hover{background:var(--glass);color:var(--luna);border-color:var(--border-hi)}
+    .header-btn.on{background:rgba(200,184,255,.12);color:var(--luna);border-color:var(--border-hi)}
+
+    /* Select banner */
+    .select-banner{display:none;background:rgba(200,184,255,.07);border-bottom:1px solid var(--border-hi);padding:.6rem 1.25rem;font-size:.82rem;color:var(--luna);align-items:center;justify-content:space-between;gap:.75rem}
+    .select-banner.on{display:flex}
+
+    /* Main */
+    .main{flex:1;padding:.5rem 1.125rem calc(5.5rem + env(safe-area-inset-bottom));max-width:680px;margin:0 auto;width:100%}
+    .view{display:none;animation:viewIn .35s cubic-bezier(.16,1,.3,1)}
+    .view.active{display:block}
+    @keyframes viewIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+    .section-label{font-family:var(--font-d);font-size:1.85rem;font-weight:300;color:var(--text);letter-spacing:.02em;margin-bottom:1.25rem;padding-top:.25rem}
+    .section-label span{color:var(--luna);font-style:italic}
+
+    /* Cards */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem;box-shadow:var(--shadow);backdrop-filter:blur(8px);margin-bottom:1rem;transition:border-color .2s,box-shadow .2s}
+    .card:hover{border-color:rgba(180,160,255,.14);box-shadow:var(--shadow),var(--sglow)}
+
+    /* Dream Entry */
+    .dream-entry{background:var(--surface);border:1px solid var(--border);border-radius:var(--rx);padding:1.375rem;margin-bottom:.875rem;box-shadow:var(--shadow);backdrop-filter:blur(8px);transition:all .25s cubic-bezier(.16,1,.3,1);position:relative;overflow:hidden}
+    .dream-entry::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--luna),var(--aurora));border-radius:3px 0 0 3px;opacity:.6}
+    .dream-entry:hover{border-color:var(--border-hi);box-shadow:var(--shadow),var(--sglow);transform:translateY(-1px)}
+    .dream-entry.sel{border-color:var(--border-hi);background:rgba(200,184,255,.06)}
+    .dream-entry.sel::before{opacity:1}
+
+    .dream-check{display:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-hi);background:transparent;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0;color:var(--luna);font-size:.75rem}
+    .sel-mode .dream-check{display:flex}
+    .dream-entry.sel .dream-check{background:rgba(200,184,255,.2);border-color:var(--luna)}
+
+    .dream-meta{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;gap:.75rem}
+    .dream-meta-left{display:flex;align-items:flex-start;gap:.75rem;flex:1;min-width:0}
+    .dream-title{font-family:var(--font-d);font-size:1.3rem;font-weight:400;color:var(--text);line-height:1.3}
+    .dream-date{font-size:.75rem;color:var(--text-muted);white-space:nowrap;padding-top:.15rem}
+    .dream-body{font-size:.9rem;color:var(--text-sub);line-height:1.7;margin-bottom:.875rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+
+    /* Tags */
+    .tag-row{display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.875rem;align-items:center}
+    .tag{display:inline-flex;align-items:center;gap:.3rem;padding:.275rem .75rem;background:rgba(200,184,255,.08);border:1px solid rgba(200,184,255,.18);color:var(--luna);border-radius:999px;font-size:.75rem;font-weight:500;letter-spacing:.02em}
+    .tag-x{width:14px;height:14px;border-radius:50%;border:none;background:rgba(200,184,255,.15);color:var(--luna);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.6rem;line-height:1;transition:background .15s;padding:0}
+    .tag-x:hover{background:rgba(255,100,100,.25);color:#ff9999}
+    .tag-add-btn{display:inline-flex;align-items:center;gap:.3rem;padding:.275rem .625rem;background:transparent;border:1px dashed rgba(200,184,255,.2);color:var(--text-muted);border-radius:999px;font-size:.75rem;cursor:pointer;transition:all .15s}
+    .tag-add-btn:hover{border-color:var(--border-hi);color:var(--luna)}
+    .tag-input-wrap{display:none;align-items:center;gap:.375rem}
+    .tag-input-wrap.on{display:flex}
+    .tag-input{width:90px;padding:.2rem .5rem;background:rgba(200,184,255,.08);border:1px solid var(--border-hi);border-radius:999px;color:var(--text);font-size:.75rem;font-family:var(--font-b)}
+    .tag-input:focus{outline:none}
+    .tag-ok{background:rgba(200,184,255,.15);border:none;border-radius:999px;color:var(--luna);font-size:.7rem;padding:.2rem .5rem;cursor:pointer}
+
+    /* Interpretation preview */
+    .interp-prev{background:rgba(127,216,200,.05);border:1px solid rgba(127,216,200,.14);border-radius:var(--r);padding:.875rem 1rem;margin-bottom:.875rem}
+    .interp-label{font-size:.7rem;font-weight:500;color:var(--aurora);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.375rem}
+    .interp-text{font-size:.87rem;color:var(--text-sub);line-height:1.6;white-space:pre-wrap}
+
+    .dream-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+
+    /* Buttons */
+    .btn{padding:.6rem 1.1rem;border-radius:var(--r);border:1px solid var(--border);font-family:var(--font-b);font-size:.825rem;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:.375rem;justify-content:center;transition:all .18s;white-space:nowrap}
+    .btn:active{transform:scale(.97)}
+    .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .btn-primary{background:linear-gradient(135deg,rgba(180,140,255,.22),rgba(127,216,200,.14));border-color:rgba(180,140,255,.3);color:var(--luna)}
+    .btn-primary:hover:not(:disabled){background:linear-gradient(135deg,rgba(180,140,255,.32),rgba(127,216,200,.22));border-color:rgba(180,140,255,.5)}
+    .btn-ghost{background:transparent;border-color:var(--border);color:var(--text-muted)}
+    .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.15);background:var(--surface)}
+    .btn-danger{background:rgba(255,90,90,.08);border-color:rgba(255,90,90,.18);color:#ff7a7a}
+    .btn-danger:hover{background:rgba(255,90,90,.14)}
+    .btn-success{background:linear-gradient(135deg,rgba(127,216,200,.22),rgba(90,190,170,.14));border-color:rgba(127,216,200,.3);color:var(--aurora)}
+    .btn-success:hover{background:linear-gradient(135deg,rgba(127,216,200,.32),rgba(90,190,170,.22))}
+    .btn-combine{background:linear-gradient(135deg,rgba(200,184,255,.18),rgba(127,216,200,.12));border-color:rgba(200,184,255,.35);color:var(--luna);font-weight:600}
+    .btn-block{width:100%}
+    .btn-lg{padding:.875rem 1.5rem;font-size:.9375rem;border-radius:var(--rl)}
+    .btn-sm{padding:.4rem .75rem;font-size:.78rem}
+
+    /* FAB */
+    .fab{position:fixed;bottom:calc(4.75rem + env(safe-area-inset-bottom));right:1.5rem;width:3.375rem;height:3.375rem;border-radius:50%;border:none;background:linear-gradient(135deg,#9b7fe0,#5fc9b8);color:white;font-size:1.625rem;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);cursor:pointer;z-index:80;transition:all .2s;animation:fabPulse 3s ease-in-out infinite}
+    @keyframes fabPulse{0%,100%{box-shadow:0 0 0 0 rgba(155,127,224,.25),var(--shadow)}50%{box-shadow:0 0 0 10px rgba(155,127,224,0),var(--shadow)}}
+    .fab:active{transform:scale(.93)}
+
+    /* Bottom nav */
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,26,.88);backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:.5rem 0 calc(.5rem + env(safe-area-inset-bottom));z-index:90}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:.2rem;padding:.5rem;color:var(--text-muted);background:none;border:none;font-family:var(--font-b);font-size:.65rem;letter-spacing:.04em;cursor:pointer;transition:all .2s}
+    .nav-icon{font-size:1.25rem;transition:transform .2s}
+    .nav-item.active{color:var(--luna)}
+    .nav-item.active .nav-icon{transform:translateY(-2px);filter:drop-shadow(0 0 6px rgba(200,184,255,.6))}
+
+    /* Empty state */
+    .empty-state{text-align:center;padding:4rem 2rem 3rem}
+    .empty-moon{width:80px;height:80px;background:conic-gradient(from 160deg,rgba(200,184,255,.4) 0%,rgba(127,216,200,.2) 40%,rgba(200,184,255,.1) 70%);border-radius:50%;margin:0 auto 1.5rem;box-shadow:inset -20px -14px 0 rgba(7,8,26,.75),0 0 30px rgba(200,184,255,.1);animation:moonFloat 4s ease-in-out infinite}
+    @keyframes moonFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    .empty-title{font-family:var(--font-d);font-size:1.5rem;font-weight:300;color:var(--text);margin-bottom:.5rem}
+    .empty-sub{color:var(--text-muted);font-size:.9rem}
+
+    /* Modals */
+    .modal{position:fixed;inset:0;background:rgba(7,8,26,.75);backdrop-filter:blur(8px);display:none;align-items:flex-end;z-index:200}
+    .modal.active{display:flex}
+    .modal-sheet{background:linear-gradient(180deg,#141630,#0d0f26);border:1px solid var(--border);border-bottom:none;border-radius:var(--rx) var(--rx) 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:0 1.5rem 1.5rem;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom));animation:sheetUp .32s cubic-bezier(.16,1,.3,1)}
+    @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .modal-drag{width:40px;height:4px;background:var(--border-hi);border-radius:999px;margin:.875rem auto 1.25rem}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .modal-title{font-family:var(--font-d);font-size:1.6rem;font-weight:300;color:var(--text)}
+    .modal-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+    .modal-close:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+
+    /* Forms */
+    .form-group{margin-bottom:1.125rem}
+    label{display:block;font-size:.775rem;font-weight:500;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem}
+    input[type="text"],input[type="password"],textarea,select{width:100%;padding:.875rem 1rem;border-radius:var(--r);border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-family:var(--font-b);font-size:.9375rem;transition:all .2s}
+    input::placeholder,textarea::placeholder{color:var(--text-muted)}
+    input:focus,textarea:focus{outline:none;border-color:rgba(200,184,255,.4);background:rgba(200,184,255,.04);box-shadow:0 0 0 3px rgba(200,184,255,.06)}
+    textarea{min-height:140px;resize:vertical;line-height:1.65}
+    .field-hint{font-size:.77rem;color:var(--text-muted);margin-top:.4rem;line-height:1.5}
+
+    /* Modal tabs */
+    .modal-tabs{display:flex;gap:.5rem;margin-bottom:1.25rem}
+    .modal-tab{flex:1;padding:.6rem;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:var(--font-b);font-size:.82rem;cursor:pointer;transition:all .18s}
+    .modal-tab.active{background:rgba(200,184,255,.1);border-color:var(--border-hi);color:var(--luna)}
+
+    /* Chat */
+    .chat-thread{display:flex;flex-direction:column;gap:.75rem;max-height:300px;overflow-y:auto;margin-bottom:.875rem;padding-right:.25rem}
+    .chat-msg{max-width:85%}
+    .chat-msg.user{align-self:flex-end}
+    .chat-msg.ai{align-self:flex-start}
+    .chat-bubble{padding:.75rem 1rem;border-radius:1.25rem;font-size:.875rem;line-height:1.65;white-space:pre-wrap}
+    .chat-msg.user .chat-bubble{background:rgba(200,184,255,.14);border:1px solid rgba(200,184,255,.2);color:var(--text);border-bottom-right-radius:.375rem}
+    .chat-msg.ai  .chat-bubble{background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text-sub);border-bottom-left-radius:.375rem}
+    .chat-input-row{display:flex;gap:.5rem;align-items:flex-end}
+    .chat-input{flex:1;min-height:44px;max-height:120px;padding:.75rem 1rem;border-radius:1.25rem;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);font-family:var(--font-b);font-size:.9rem;resize:none;line-height:1.5;transition:border-color .2s}
+    .chat-input:focus{outline:none;border-color:rgba(200,184,255,.4)}
+    .chat-send{width:44px;height:44px;border-radius:50%;border:none;flex-shrink:0;background:linear-gradient(135deg,#9b7fe0,#5fc9b8);color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;transition:all .18s}
+    .chat-send:hover{transform:scale(1.05)}
+    .chat-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+    .chat-empty{text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.85rem}
+
+    /* Dream picker */
+    .dream-picker{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;max-height:240px;overflow-y:auto}
+    .pick-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all .15s}
+    .pick-item:hover{border-color:var(--border-hi)}
+    .pick-item.on{border-color:var(--border-hi);background:rgba(200,184,255,.07)}
+    .pick-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-hi);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;color:var(--luna)}
+    .pick-item.on .pick-check{background:rgba(200,184,255,.2)}
+    .pick-title{font-family:var(--font-d);font-size:1.05rem;color:var(--text)}
+    .pick-date{font-size:.72rem;color:var(--text-muted);margin-top:.1rem}
+
+    /* Stats */
+    .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem}
+    .stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem .75rem;text-align:center}
+    .stat-number{font-family:var(--font-d);font-size:2.25rem;font-weight:300;color:var(--luna);line-height:1}
+    .stat-label{font-size:.72rem;color:var(--text-muted);margin-top:.35rem;letter-spacing:.04em;text-transform:uppercase}
+
+    /* Loader */
+    .loader{display:inline-flex;gap:4px;align-items:center}
+    .loader span{width:6px;height:6px;border-radius:50%;background:var(--luna);animation:dotB 1.2s ease-in-out infinite}
+    .loader span:nth-child(2){animation-delay:.15s}
+    .loader span:nth-child(3){animation-delay:.3s}
+    @keyframes dotB{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}
+
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(200,184,255,.15);border-radius:999px}
+    .hidden{display:none!important}
+    .divider{border:none;border-top:1px solid var(--border);margin:1.125rem 0}
+    .mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mb-1{margin-bottom:.5rem}.mb-2{margin-bottom:1rem}
+  </style>
+</head>
+<body>
+
+<canvas id="starCanvas"></canvas>
+<div class="nebula nb1"></div>
+<div class="nebula nb2"></div>
+<div class="nebula nb3"></div>
+
+<div class="app">
+  <header class="app-header">
+    <div class="logo">
+      <div class="logo-moon"></div>
+      <span class="logo-text">Somnium</span>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" id="selBtn" onclick="toggleSelectMode()" title="Select dreams to read together">⊡</button>
+      <button class="header-btn" onclick="showSettings()" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <div class="select-banner" id="selBanner">
+    <span id="selCount">0 selected</span>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-sm btn-combine" id="combineBtn" onclick="openCombineModal()" disabled>✦ Read Together</button>
+      <button class="btn btn-sm btn-ghost" onclick="toggleSelectMode()">Cancel</button>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <div id="journalView" class="view active">
+      <div id="dreamsList"></div>
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-moon"></div>
+        <h3 class="empty-title">No dreams recorded yet</h3>
+        <p class="empty-sub">Tap <strong>+</strong> to capture your first dream before it fades</p>
+      </div>
+    </div>
+
+    <div id="statsView" class="view">
+      <p class="section-label">Your <span>Dream Patterns</span></p>
+      <div id="statsContent"></div>
+    </div>
+
+    <div id="archiveView" class="view">
+      <p class="section-label"><span>Archived</span> Dreams</p>
+      <div id="archiveList"></div>
+    </div>
+
+    <div id="settingsView" class="view">
+      <p class="section-label"><span>Settings</span></p>
+      <div class="card">
+        <p style="font-size:.7rem;font-weight:500;color:var(--luna);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.5rem">Connected Server</p>
+        <p id="serverStatus" style="font-size:.85rem;color:var(--text-sub);margin-bottom:1rem">Checking connection…</p>
+        <div class="form-group">
+          <label>Proxy URL</label>
+          <input type="text" id="apiBaseInput" placeholder="https://your-app.onrender.com">
+          <p class="field-hint">Your Render server URL. No API key needed — it lives on the server.</p>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="saveSettings()">Save</button>
+        <hr class="divider">
+        <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem;">Share Somnium with anyone — send them the downloaded file. It connects to your server automatically.</p>
+        <button class="btn btn-ghost btn-block" onclick="exportApp()">⬇ Download &amp; Share App</button>
+      </div>
+    </div>
+
+  </main>
+
+  <button class="fab" onclick="showAddDream()">+</button>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchView('journal')"><span class="nav-icon">🌙</span><span>Journal</span></button>
+    <button class="nav-item" onclick="switchView('stats')"><span class="nav-icon">✦</span><span>Insights</span></button>
+    <button class="nav-item" onclick="switchView('archive')"><span class="nav-icon">🗂</span><span>Archive</span></button>
+    <button class="nav-item" onclick="switchView('settings')"><span class="nav-icon">⚙</span><span>Settings</span></button>
+  </nav>
+</div>
+
+<!-- Add Dream -->
+<div id="addModal" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">Record a Dream</h2>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="dreamTitle" placeholder="Give this dream a name…">
+    </div>
+    <div class="form-group">
+      <label>What happened?</label>
+      <textarea id="dreamContent" placeholder="Describe your dream in as much detail as you can recall…" rows="6"></textarea>
+    </div>
+    <button class="btn btn-success btn-block btn-lg" onclick="saveDream()">Save Dream</button>
+  </div>
+</div>
+
+<!-- Interpret + Chat -->
+<div id="interpModal" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <h2 class="modal-title" id="interpTitle">Reading</h2>
+      <button class="modal-close" onclick="closeInterpModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tabReadBtn" onclick="switchTab('read')">✦ Reading</button>
+      <button class="modal-tab" id="tabChatBtn" onclick="switchTab('chat')">💬 Chat</button>
+    </div>
+
+    <!-- Reading tab -->
+    <div id="tabRead">
+      <div class="card mb-2" style="background:rgba(200,184,255,.04);border-color:rgba(200,184,255,.1)">
+        <p style="font-size:.7rem;font-weight:500;color:var(--luna);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.5rem">Dream</p>
+        <p id="interpPreview" style="color:var(--text-sub);font-size:.9rem;line-height:1.7;white-space:pre-wrap"></p>
+      </div>
+      <div class="card" style="background:rgba(127,216,200,.04);border-color:rgba(127,216,200,.1)">
+        <p style="font-size:.7rem;font-weight:500;color:var(--aurora);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.5rem">✦ Reading</p>
+        <p id="interpResult" style="color:var(--text-sub);font-size:.9rem;line-height:1.7;white-space:pre-wrap"></p>
+        <div id="interpLoading" class="hidden" style="text-align:center;padding:.75rem 0">
+          <div class="loader"><span></span><span></span><span></span></div>
+          <p style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem">Reading between the lines…</p>
+        </div>
+      </div>
+      <button id="interpRunBtn" class="btn btn-primary btn-block btn-lg mt-2" onclick="runReading()">✦ Read This Dream</button>
+    </div>
+
+    <!-- Chat tab -->
+    <div id="tabChat" class="hidden">
+      <div id="chatThread" class="chat-thread"></div>
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chatInput" placeholder="Ask anything about this dream…" rows="1" oninput="resizeTA(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+        <button class="chat-send" id="chatSendBtn" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Combine + Chat -->
+<div id="combineModal" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">Read Together</h2>
+      <button class="modal-close" onclick="closeCombineModal()">✕</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:.875rem;margin-bottom:1rem">Pick 2+ dreams. What are they collectively trying to tell you?</p>
+    <div id="dreamPicker" class="dream-picker"></div>
+    <div class="card" style="background:rgba(127,216,200,.04);border-color:rgba(127,216,200,.1);margin-top:.5rem">
+      <p style="font-size:.7rem;font-weight:500;color:var(--aurora);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.5rem">✦ Combined Reading</p>
+      <p id="combineResult" style="color:var(--text-sub);font-size:.9rem;line-height:1.7;white-space:pre-wrap"></p>
+      <div id="combineLoading" class="hidden" style="text-align:center;padding:.75rem 0">
+        <div class="loader"><span></span><span></span><span></span></div>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem">Reading the pattern across your dreams…</p>
+      </div>
+    </div>
+    <button id="combineRunBtn" class="btn btn-primary btn-block btn-lg mt-2" onclick="runCombined()">✦ Read These Dreams Together</button>
+
+    <div id="combineChatSection" class="hidden">
+      <hr class="divider">
+      <p style="font-size:.7rem;font-weight:500;color:var(--luna);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.875rem">💬 Keep Talking</p>
+      <div id="combineChatThread" class="chat-thread"></div>
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="combineChatInput" placeholder="Ask about this reading…" rows="1" oninput="resizeTA(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCombineChat()}"></textarea>
+        <button class="chat-send" id="combineChatSend" onclick="sendCombineChat()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State
+  let dreams=[], proxyUrl='';
+  let activeInterpId=null, chatHistory=[];
+  let combinePickedIds=[], combineReading='', combineChatHistory=[];
+  let selectMode=false, selectedIds=new Set();
+
+  // ── Stars
+  (()=>{
+    const c=document.getElementById('starCanvas'),ctx=c.getContext('2d');let stars=[];
+    function resize(){c.width=innerWidth;c.height=innerHeight}
+    function mk(){stars=Array.from({length:160},()=>({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.2+.2,o:Math.random()*.6+.2,s:Math.random()*.4+.1}))}
+    function draw(){ctx.clearRect(0,0,c.width,c.height);const t=Date.now()/1000;stars.forEach(s=>{const a=s.o*(.6+.4*Math.sin(t*s.s+s.x));ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(230,220,255,${a})`;ctx.fill()});requestAnimationFrame(draw)}
+    resize();mk();draw();addEventListener('resize',()=>{resize();mk()});
+  })();
+
+  // ── Init
+  function init(){loadData();renderDreams()}
+  function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function trunc(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1)+'…':s}
+
+  // ── Keywords
+  const STOP=new Set('a an the and or but in on at to for of with by from up about into through during before after is was are were be been being have has had do does did will would could should may might must shall i me my myself we our you your he him his she her it its they them their this that these those then than so if when where who which what how not no just very also back other more can get got went came saw said there here some all out because while like even still too as am going over again off around however someone something everything nothing started suddenly began felt feeling seemed really knew dream dreams night sleep woke waking'.split(' '));
+  function keywords(text){const f={};text.toLowerCase().replace(/[^a-z\s'-]/g,' ').split(/\s+/).filter(w=>w.length>3&&!STOP.has(w)&&!/^\d+$/.test(w)).forEach(w=>f[w]=(f[w]||0)+1);return Object.entries(f).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([w])=>w)}
+
+  // ── API
+  function sysPrompt(){return`You interpret dreams the way a gifted, perceptive friend would — someone who reads between the lines and reflects things back in a way that makes the person feel truly seen. You're warm, direct, and emotionally intelligent. Not a therapist. Not a mystic. Just someone who gets it.
+
+Tone: conversational, intimate, second person. Pick the most specific telling details and zero in on them. Name the feeling underneath before the dreamer has.
+
+Structure (no headers, flowing paragraphs):
+1. Open by naming the emotional texture of this dream — be precise about what kind of experience it was.
+2. Work through key images and moments — what they point to emotionally. Stay grounded and specific.
+3. Connect it to their waking life — what they might be bracing for, avoiding, or carrying.
+4. End with one short sharp question they'll actually sit with.
+
+Rules: No bullet points. No clinical jargon. Short punchy paragraphs. 4–7 paragraphs. Sound human.`}
+
+  function combineSysPrompt(){return`You interpret multiple dreams together — reading them as one connected message. Find the threads that run across all of them and what they collectively point to.
+
+Same tone: warm, direct, perceptive, conversational. Like a friend who sees the pattern before you do.
+
+Structure (no headers):
+1. Name the overall emotional weather across these dreams.
+2. Draw out recurring threads — feelings, symbols, fears, desires.
+3. Say what this pattern suggests about their waking life right now. Be specific.
+4. Close with one question that ties it all together.
+
+Same rules: no bullets, short paragraphs, second person, 4–7 paragraphs.`}
+
+  function chatSysPrompt(dreamCtx,reading){return`You're continuing a conversation about someone's dream after giving them a reading. Same warm, perceptive friend energy. Respond naturally to whatever they say. Direct, warm, human. Short paragraphs, no bullets unless it really helps.
+
+Dream:
+${dreamCtx}
+
+Your reading:
+${reading}`}
+
+  function extractText(data){
+    try{const chunks=[];for(const item of(data.output||[])){for(const c of(item.content||[])){if((c.type==='output_text'||c.type==='text')&&typeof c.text==='string')chunks.push(c.text)}}if(chunks.length)return chunks.join('\n')}catch(e){}
+    return typeof data.output_text==='string'?data.output_text:''
+  }
+
+  async function callAI(messages,sys){
+    if(!proxyUrl?.trim())throw new Error('Proxy URL not set — open Settings');
+    const url=proxyUrl.trim().replace(/\/$/,'')+'/api/dream';
+    const input=[{role:'system',content:sys},...messages];
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input})});
+    let data;try{data=await res.json()}catch(e){}
+    if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
+    const out=extractText(data);if(!out)throw new Error('No text output received');
+    return out.trim()
+  }
+
+  // ── Storage
+  function loadData(){try{const d=JSON.parse(localStorage.getItem('somniumData')||'{}');dreams=d.dreams||[];proxyUrl=d.proxyUrl||''}catch(e){}}
+  function saveData(){localStorage.setItem('somniumData',JSON.stringify({dreams,proxyUrl}))}
+
+  // ── Export
+  function exportApp(){const b=new Blob([document.documentElement.outerHTML],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='somnium-dream-journal.html';a.click()}
+
+  // ── Navigation
+  function switchView(v){
+    if(selectMode&&v!=='journal')toggleSelectMode();
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    document.getElementById(v+'View').classList.add('active');
+    const el=typeof event!=='undefined'&&event?.currentTarget?event.currentTarget:null;
+    if(el)el.classList.add('active');
+    else document.querySelectorAll('.bottom-nav .nav-item').forEach(b=>{if((b.getAttribute('onclick')||'').includes(`'${v}'`))b.classList.add('active')});
+    if(v==='journal')renderDreams();
+    if(v==='stats')renderStats();
+    if(v==='archive')renderArchive();
+    if(v==='settings'){document.getElementById('apiBaseInput').value=proxyUrl||'';checkServerStatus()}
+  }
+
+  // ── Select mode
+  function toggleSelectMode(){
+    selectMode=!selectMode;selectedIds.clear();
+    document.getElementById('selBtn').classList.toggle('on',selectMode);
+    document.getElementById('selBanner').classList.toggle('on',selectMode);
+    document.getElementById('selCount').textContent='0 selected';
+    document.getElementById('combineBtn').disabled=true;
+    renderDreams();
+  }
+  function toggleSel(id){
+    if(!selectMode)return;
+    selectedIds.has(id)?selectedIds.delete(id):selectedIds.add(id);
+    document.getElementById('selCount').textContent=selectedIds.size+' selected';
+    document.getElementById('combineBtn').disabled=selectedIds.size<2;
+    renderDreams();
+  }
+
+  // ── Add dream
+  function showAddDream(){document.getElementById('addModal').classList.add('active')}
+  function closeAddModal(){document.getElementById('addModal').classList.remove('active');['dreamTitle','dreamContent'].forEach(id=>document.getElementById(id).value='')}
+  function saveDream(){
+    const content=document.getElementById('dreamContent').value.trim();
+    if(!content){alert('Please describe your dream');return}
+    const title=document.getElementById('dreamTitle').value.trim();
+    dreams.unshift({id:Date.now().toString(),title:title||'Untitled Dream',content,tags:keywords(title+' '+content),date:new Date().toISOString(),archived:false});
+    saveData();closeAddModal();renderDreams();
+  }
+
+  // ── Tag editing
+  function removeTag(id,tag){const d=dreams.find(x=>x.id===id);if(d){d.tags=d.tags.filter(t=>t!==tag);saveData();renderDreams()}}
+  function showTagInput(id){document.getElementById('tagWrap_'+id)?.classList.add('on');document.getElementById('tagAddBtn_'+id).style.display='none';document.getElementById('tagIn_'+id)?.focus()}
+  function commitTag(id){
+    const inp=document.getElementById('tagIn_'+id);if(!inp)return;
+    const v=inp.value.trim().toLowerCase().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,' ');
+    if(v){const d=dreams.find(x=>x.id===id);if(d&&!d.tags.includes(v)){d.tags.push(v);saveData()}}
+    renderDreams();
+  }
+  function tagKey(e,id){if(e.key==='Enter'){e.preventDefault();commitTag(id)}if(e.key==='Escape')renderDreams()}
+
+  // ── Reading (single)
+  function openInterp(id){
+    const d=dreams.find(x=>x.id===id);if(!d)return;
+    activeInterpId=id;chatHistory=d.chatHistory||[];
+    document.getElementById('interpTitle').textContent=d.title||'Reading';
+    document.getElementById('interpPreview').textContent=d.content||'';
+    document.getElementById('interpResult').textContent=d.interpretation||'';
+    document.getElementById('interpLoading').classList.add('hidden');
+    document.getElementById('interpRunBtn').disabled=false;
+    switchTab('read');renderChatUI();
+    document.getElementById('interpModal').classList.add('active');
+  }
+  function closeInterpModal(){document.getElementById('interpModal').classList.remove('active');activeInterpId=null;chatHistory=[]}
+
+  function switchTab(t){
+    document.getElementById('tabReadBtn').classList.toggle('active',t==='read');
+    document.getElementById('tabChatBtn').classList.toggle('active',t==='chat');
+    document.getElementById('tabRead').classList.toggle('hidden',t!=='read');
+    document.getElementById('tabChat').classList.toggle('hidden',t!=='chat');
+  }
+
+  async function runReading(){
+    if(!activeInterpId)return;
+    const d=dreams.find(x=>x.id===activeInterpId);if(!d)return;
+    if(!proxyUrl?.trim()){alert('Open Settings and add your server URL.');closeInterpModal();showSettings();return}
+    document.getElementById('interpLoading').classList.remove('hidden');
+    document.getElementById('interpRunBtn').disabled=true;
+    document.getElementById('interpResult').textContent='';
+    try{
+      const msg=`Read this dream. Speak directly to the dreamer.\n\nTitle: ${d.title||'Untitled'}\nThemes: ${(d.tags||[]).join(', ')||'none noted'}\n\n${d.content||''}`;
+      const reply=await callAI([{role:'user',content:msg}],sysPrompt());
+      d.interpretation=reply;d.interpretedAt=new Date().toISOString();d.chatHistory=[];chatHistory=[];
+      saveData();document.getElementById('interpResult').textContent=reply;renderDreams();renderChatUI();
+    }catch(err){document.getElementById('interpResult').textContent='Could not read.\n\n'+(err?.message||err)}
+    finally{document.getElementById('interpLoading').classList.add('hidden');document.getElementById('interpRunBtn').disabled=false}
+  }
+
+  // ── Chat (single)
+  function renderChatUI(){
+    const t=document.getElementById('chatThread');
+    if(!chatHistory.length){t.innerHTML=`<div class="chat-empty">${(dreams.find(x=>x.id===activeInterpId)?.interpretation)?'Ask anything — go deeper, push back, explore.':'Get a reading first, then come back here.'}</div>`;return}
+    t.innerHTML=chatHistory.map(m=>`<div class="chat-msg ${m.role==='user'?'user':'ai'}"><div class="chat-bubble">${esc(m.content)}</div></div>`).join('');
+    t.scrollTop=t.scrollHeight;
+  }
+  function resizeTA(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+  async function sendChat(){
+    const inp=document.getElementById('chatInput'),msg=inp.value.trim();if(!msg)return;
+    const d=activeInterpId?dreams.find(x=>x.id===activeInterpId):null;
+    if(!d?.interpretation){switchTab('read');return}
+    chatHistory.push({role:'user',content:msg});inp.value='';inp.style.height='auto';renderChatUI();
+    document.getElementById('chatSendBtn').disabled=true;
+    try{
+      const ctx=`Title: ${d.title}\nThemes: ${(d.tags||[]).join(', ')}\n\n${d.content}`;
+      const reply=await callAI(chatHistory,chatSysPrompt(ctx,d.interpretation));
+      chatHistory.push({role:'assistant',content:reply});d.chatHistory=chatHistory;saveData();renderChatUI();
+    }catch(err){chatHistory.push({role:'assistant',content:'Something went wrong. '+(err?.message||'')});renderChatUI()}
+    finally{document.getElementById('chatSendBtn').disabled=false}
+  }
+
+  // ── Combined reading
+  function openCombineModal(){
+    combinePickedIds=[...selectedIds];combineReading='';combineChatHistory=[];
+    document.getElementById('combineResult').textContent='';
+    document.getElementById('combineLoading').classList.add('hidden');
+    document.getElementById('combineChatSection').classList.add('hidden');
+    document.getElementById('combineChatThread').innerHTML='';
+    document.getElementById('combineChatInput').value='';
+    renderPicker();
+    document.getElementById('combineModal').classList.add('active');
+  }
+  function closeCombineModal(){document.getElementById('combineModal').classList.remove('active')}
+  function renderPicker(){
+    document.getElementById('dreamPicker').innerHTML=dreams.filter(d=>!d.archived).map(d=>`
+      <div class="pick-item ${combinePickedIds.includes(d.id)?'on':''}" onclick="togglePick('${d.id}')">
+        <div class="pick-check">${combinePickedIds.includes(d.id)?'✓':''}</div>
+        <div><div class="pick-title">${esc(d.title)}</div><div class="pick-date">${new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div></div>
+      </div>`).join('');
+  }
+  function togglePick(id){
+    const i=combinePickedIds.indexOf(id);i>-1?combinePickedIds.splice(i,1):combinePickedIds.push(id);
+    document.getElementById('combineRunBtn').disabled=combinePickedIds.length<2;
+    renderPicker();
+  }
+  async function runCombined(){
+    if(combinePickedIds.length<2)return;
+    if(!proxyUrl?.trim()){alert('Open Settings and add your server URL.');closeCombineModal();showSettings();return}
+    const picked=combinePickedIds.map(id=>dreams.find(d=>d.id===id)).filter(Boolean);
+    const ctx=picked.map((d,i)=>`Dream ${i+1}: "${d.title}"\nThemes: ${(d.tags||[]).join(', ')||'none'}\n${d.content}`).join('\n\n---\n\n');
+    document.getElementById('combineLoading').classList.remove('hidden');
+    document.getElementById('combineRunBtn').disabled=true;
+    document.getElementById('combineResult').textContent='';
+    try{
+      const reply=await callAI([{role:'user',content:`Read these dreams together as one message. Speak directly to the dreamer.\n\n${ctx}`}],combineSysPrompt());
+      combineReading=reply;combineChatHistory=[];
+      document.getElementById('combineResult').textContent=reply;
+      document.getElementById('combineChatSection').classList.remove('hidden');
+    }catch(err){document.getElementById('combineResult').textContent='Could not read.\n\n'+(err?.message||err)}
+    finally{document.getElementById('combineLoading').classList.add('hidden');document.getElementById('combineRunBtn').disabled=false}
+  }
+  async function sendCombineChat(){
+    const inp=document.getElementById('combineChatInput'),msg=inp.value.trim();if(!msg||!combineReading)return;
+    combineChatHistory.push({role:'user',content:msg});inp.value='';inp.style.height='auto';renderCombineChatUI();
+    document.getElementById('combineChatSend').disabled=true;
+    const picked=combinePickedIds.map(id=>dreams.find(d=>d.id===id)).filter(Boolean);
+    const ctx=picked.map((d,i)=>`Dream ${i+1}: "${d.title}"\n${d.content}`).join('\n\n---\n\n');
+    try{
+      const reply=await callAI(combineChatHistory,chatSysPrompt(ctx,combineReading));
+      combineChatHistory.push({role:'assistant',content:reply});renderCombineChatUI();
+    }catch(err){combineChatHistory.push({role:'assistant',content:'Something went wrong. '+(err?.message||'')});renderCombineChatUI()}
+    finally{document.getElementById('combineChatSend').disabled=false}
+  }
+  function renderCombineChatUI(){
+    const t=document.getElementById('combineChatThread');
+    t.innerHTML=combineChatHistory.map(m=>`<div class="chat-msg ${m.role==='user'?'user':'ai'}"><div class="chat-bubble">${esc(m.content)}</div></div>`).join('');
+    t.scrollTop=t.scrollHeight;
+  }
+
+  // ── CRUD
+  function archiveDream(id){const d=dreams.find(x=>x.id===id);if(d){d.archived=true;saveData();renderDreams()}}
+  function deleteDream(id){if(confirm('Permanently delete this dream?')){dreams=dreams.filter(x=>x.id!==id);saveData();renderDreams()}}
+  function restoreDream(id){const d=dreams.find(x=>x.id===id);if(d){d.archived=false;saveData();renderArchive()}}
+
+  // ── Render dreams
+  function renderDreams(){
+    const list=document.getElementById('dreamsList');
+    const active=dreams.filter(d=>!d.archived);
+    if(!active.length){list.innerHTML='';document.getElementById('emptyState').classList.remove('hidden');return}
+    document.getElementById('emptyState').classList.add('hidden');
+    selectMode?list.classList.add('sel-mode'):list.classList.remove('sel-mode');
+    list.innerHTML=active.map(d=>{
+      const dt=new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const isSel=selectedIds.has(d.id);
+      return `
+      <div class="dream-entry ${isSel?'sel':''}" onclick="${selectMode?`toggleSel('${d.id}')`:''}" id="entry_${d.id}">
+        <div class="dream-meta">
+          <div class="dream-meta-left">
+            <div class="dream-check" onclick="event.stopPropagation();toggleSel('${d.id}')">${isSel?'✓':''}</div>
+            <div><div class="dream-title">${esc(d.title)}</div><div class="dream-date">${dt}</div></div>
+          </div>
+        </div>
+        <div class="dream-body">${esc(d.content)}</div>
+        <div class="tag-row" id="tagRow_${d.id}">
+          ${d.tags.map(t=>`<span class="tag">${esc(t)}<button class="tag-x" onclick="event.stopPropagation();removeTag('${d.id}','${esc(t)}')" title="Remove">✕</button></span>`).join('')}
+          <button class="tag-add-btn" id="tagAddBtn_${d.id}" onclick="event.stopPropagation();showTagInput('${d.id}')">+ add</button>
+          <div class="tag-input-wrap" id="tagWrap_${d.id}">
+            <input class="tag-input" id="tagIn_${d.id}" placeholder="keyword" onkeydown="tagKey(event,'${d.id}')" onclick="event.stopPropagation()">
+            <button class="tag-ok" onclick="event.stopPropagation();commitTag('${d.id}')">✓</button>
+          </div>
+        </div>
+        ${d.interpretation?`<div class="interp-prev"><p class="interp-label">✦ Reading</p><p class="interp-text">${esc(trunc(d.interpretation,280))}</p></div>`:''}
+        <div class="dream-actions">
+          <button class="btn btn-primary" onclick="event.stopPropagation();openInterp('${d.id}')">✦ ${d.interpretation?'Read Again':'Read'}</button>
+          ${d.interpretation?`<button class="btn btn-ghost" onclick="event.stopPropagation();openInterp('${d.id}');setTimeout(()=>switchTab('chat'),50)">💬 Chat</button>`:''}
+          <button class="btn btn-ghost" onclick="event.stopPropagation();archiveDream('${d.id}')">Archive</button>
+          <button class="btn btn-danger" onclick="event.stopPropagation();deleteDream('${d.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStats(){
+    const active=dreams.filter(d=>!d.archived);
+    const withR=active.filter(d=>d.interpretation);
+    const tc={};active.flatMap(d=>d.tags).forEach(t=>tc[t]=(tc[t]||0)+1);
+    const top=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    document.getElementById('statsContent').innerHTML=`
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-number">${active.length}</div><div class="stat-label">Dreams</div></div>
+        <div class="stat-box"><div class="stat-number">${withR.length}</div><div class="stat-label">Read</div></div>
+        <div class="stat-box"><div class="stat-number">${top.length}</div><div class="stat-label">Themes</div></div>
+      </div>
+      ${top.length?`<div class="card"><p style="font-size:.7rem;font-weight:500;color:var(--luna);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.875rem">Most Common Themes</p><div class="tag-row">${top.map(([t,c])=>`<span class="tag">${esc(t)} · ${c}</span>`).join('')}</div></div>`:`<div style="text-align:center;padding:2rem;color:var(--text-muted)">Record more dreams to see patterns.</div>`}`;
+  }
+
+  function renderArchive(){
+    const arch=dreams.filter(d=>d.archived),list=document.getElementById('archiveList');
+    if(!arch.length){list.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--text-muted)">No archived dreams yet.</div>`;return}
+    list.innerHTML=arch.map(d=>`<div class="dream-entry"><div class="dream-title">${esc(d.title)}</div><div class="dream-date" style="margin:.25rem 0 .875rem">${new Date(d.date).toLocaleDateString()}</div><button class="btn btn-primary" onclick="restoreDream('${d.id}')">↩ Restore</button></div>`).join('');
+  }
+
+  function showSettings(){switchView('settings')}
+  function saveSettings(){
+    proxyUrl=document.getElementById('apiBaseInput').value.trim();
+    saveData();checkServerStatus();switchView('journal');
+  }
+  async function checkServerStatus(){
+    const el=document.getElementById('serverStatus');if(!el)return;
+    if(!proxyUrl){el.textContent='No server URL set.';el.style.color='var(--text-muted)';return}
+    el.textContent='Checking…';el.style.color='var(--text-muted)';
+    try{
+      const res=await fetch(proxyUrl.trim().replace(/\/$/,'')+'/');
+      if(res.ok){el.textContent='✓ Connected';el.style.color='var(--aurora)'}
+      else{el.textContent='⚠ Server responded with an error';el.style.color='#ffaa55'}
+    }catch(e){el.textContent='✕ Cannot reach server';el.style.color='#ff7a7a'}
+  }
+
+  init();
+</script>
+</body>
+</html>
